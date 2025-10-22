@@ -1,0 +1,37 @@
+{
+  "name": "stakely-backend",
+  "version": "1.0.0",
+  "description": "Stakely waitlist management API with MongoDB support and JSON fallback",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "prod": "NODE_ENV=production node server.js",
+    "build": "echo 'No build step required for Node.js app'",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo 'Add ESLint configuration for linting'",
+    "check-health": "curl -f http://localhost:3000/health || exit 1"
+  },
+  "keywords": ["waitlist", "api", "mongodb", "express", "stakely", "backend"],
+  "author": "Stakely Team",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/stakely-backend.git"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^7.1.0",
+    "mongodb": "^6.1.0",
+    "morgan": "^1.10.1"
+  }
+}

@@ -1,0 +1,49 @@
+# Environment files
+.env.example
+.env.production
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependencies
+/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+/build
+/dist
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory
+coverage
+*.lcov
+
+# Logs
+logs
+*.log
+
+# Editor files
+.vscode/
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+.DS_Store?
+Thumbs.db
+
+# Temporary folders
+tmp/
+temp/
+RENDER_DEPLOYMENT.md
+WAITLIST_API_DOCS.md
+ADMIN_ACCESS.md

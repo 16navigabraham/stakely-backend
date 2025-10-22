@@ -1,0 +1,24 @@
+{
+  "entries": {
+  "entries": [
+    {
+      "id": 1,
+      "email": "user@example.com",
+      "farcasterUsername": "dwr",
+      "twitterUsername": null,
+      "timestamp": "2025-10-22T10:30:00Z",
+      "position": 1
+    }
+  ],
+  "stats": {
+    "total": 1,
+    "twitterSignups": 0,
+    "farcasterSignups": 1
+  }
+},
+  "stats": {
+    "total": 0,
+    "twitterSignups": 0,
+    "farcasterSignups": 0
+  }
+}
