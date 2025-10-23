@@ -37,11 +37,40 @@ async function liveMarketHandler(req, res) {
     return res.status(200).end();
   }
   
+  // Support POST for recording votes and GET for fetching data
+  if (req.method === 'POST') {
+    // Record a vote
+    try {
+      await initializeDatabase();
+      const { farcasterUsername, challengeId, vote, stakeAmount } = req.body;
+      if (!farcasterUsername || !challengeId || !vote) {
+        return res.status(400).json({ success: false, message: 'Missing required fields: farcasterUsername, challengeId, vote' });
+      }
+
+      if (!['yes', 'no'].includes(String(vote).toLowerCase())) {
+        return res.status(400).json({ success: false, message: "Invalid vote value. Use 'yes' or 'no'" });
+      }
+
+      const voteEntry = {
+        farcasterUsername,
+        challengeId,
+        vote: String(vote).toLowerCase(),
+        stakeAmount: stakeAmount ? Number(stakeAmount) : 0
+      };
+
+      const result = await database.recordVote(voteEntry);
+      return res.status(201).json({ success: true, data: result.data || result });
+    } catch (error) {
+      console.error('Record vote error:', error);
+      return res.status(500).json({ success: false, message: 'Failed to record vote' });
+    }
+  }
+
   if (req.method !== 'GET') {
-    res.setHeader('Allow', ['GET', 'OPTIONS']);
+    res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
     return res.status(405).json({
       success: false,
-      message: 'Method not allowed. Use GET to fetch live market data.'
+      message: 'Method not allowed. Use GET to fetch live market data or POST to record a vote.'
     });
   }
   
@@ -55,7 +84,9 @@ async function liveMarketHandler(req, res) {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      status = 'active'
+      status = 'active',
+      // if userVotes=true, return votes for the provided farcasterUsername
+      userVotes = 'false'
     } = req.query;
     
     // Validate category
@@ -89,6 +120,15 @@ async function liveMarketHandler(req, res) {
       } catch (error) {
         console.warn('Could not fetch user interests:', error.message);
       }
+    }
+
+    // If caller requested user votes, return them
+    if (String(userVotes).toLowerCase() === 'true') {
+      if (!farcasterUsername) {
+        return res.status(400).json({ success: false, message: 'Provide farcasterUsername to fetch user votes' });
+      }
+      const votes = await database.getVotesByUser(farcasterUsername);
+      return res.status(200).json({ success: true, data: votes });
     }
     
     // Get challenges from database

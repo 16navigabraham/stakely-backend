@@ -4,7 +4,8 @@
 
 ### 1. `/api/create_user` (POST)
 ### 2. `/api/create_challenge` (POST) 
-### 3. `/api/live_market` (GET)
+### 3. `/api/live_market` (GET, POST)
+### 4. `/api/user_profile` (GET)
 
 ---
 
@@ -165,9 +166,11 @@ createChallenge(challengeData, bannerFile);
 
 ## 📊 3. Live Market Endpoint
 
-**URL:** `GET /api/live_market`
+**URLs:** 
+- `GET /api/live_market` - Get challenges or user votes
+- `POST /api/live_market` - Record a vote on a challenge
 
-### Query Parameters:
+### GET Query Parameters:
 - `farcasterUsername` (optional) - For personalized results based on user interests
 - `category` (optional) - Filter by: all, sports, crypto, entertainment, social network, tech, politics, weather
 - `page` (optional, default: 1) - Page number
@@ -175,6 +178,23 @@ createChallenge(challengeData, bannerFile);
 - `sortBy` (optional, default: createdAt) - Sort field
 - `sortOrder` (optional, default: desc) - asc or desc
 - `status` (optional, default: active) - Challenge status
+- `userVotes` (optional, default: false) - When true, returns user's votes instead of challenges (requires farcasterUsername)
+
+### POST Request Body:
+```json
+{
+  "farcasterUsername": "dwr",
+  "challengeId": "1729598400123_def789",
+  "vote": "yes",
+  "stakeAmount": 100
+}
+```
+
+### POST Required Fields:
+- `farcasterUsername` (string) - User casting the vote
+- `challengeId` (string) - ID of the challenge being voted on
+- `vote` (string) - Must be "yes" or "no"
+- `stakeAmount` (number, optional) - Amount to stake on this vote
 
 ### Examples:
 
@@ -198,6 +218,23 @@ curl "http://localhost:3000/api/live_market?category=crypto&page=1&limit=10"
 curl "http://localhost:3000/api/live_market?farcasterUsername=dwr&category=all"
 ```
 
+**Get a user's votes:**
+```bash
+curl "http://localhost:3000/api/live_market?userVotes=true&farcasterUsername=dwr"
+```
+
+**Record a vote:**
+```bash
+curl -X POST "http://localhost:3000/api/live_market" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "farcasterUsername": "dwr",
+    "challengeId": "1729598400123_def789",
+    "vote": "yes",
+    "stakeAmount": 100
+  }'
+```
+
 ### JavaScript Example:
 ```javascript
 const getLiveMarket = async (filters = {}) => {
@@ -206,10 +243,41 @@ const getLiveMarket = async (filters = {}) => {
   return response.json();
 };
 
+const getUserVotes = async (farcasterUsername) => {
+  const params = new URLSearchParams({
+    userVotes: true,
+    farcasterUsername
+  });
+  const response = await fetch(`/api/live_market?${params}`);
+  return response.json();
+};
+
+const recordVote = async (voteData) => {
+  const response = await fetch('/api/live_market', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(voteData)
+  });
+  return response.json();
+};
+
 // Usage examples:
 getLiveMarket(); // All active challenges
 getLiveMarket({ farcasterUsername: 'dwr' }); // Personalized
 getLiveMarket({ category: 'crypto', page: 1, limit: 10 }); // Filtered
+
+// Get user's votes
+getUserVotes('dwr');
+
+// Record a vote
+recordVote({
+  farcasterUsername: 'dwr',
+  challengeId: '1729598400123_def789',
+  vote: 'yes',
+  stakeAmount: 100
+});
 ```
 
 ### Success Response (200):
@@ -317,11 +385,55 @@ All endpoints use these standardized categories:
 
 ---
 
-## 🚀 Production URLs
+## � 4. User Profile Endpoint
+
+**URL:** `GET /api/user_profile`
+
+### Query Parameters:
+- `farcasterUsername` (required) - Username to fetch profile for
+
+### Example:
+```bash
+curl "http://localhost:3000/api/user_profile?farcasterUsername=dwr"
+```
+
+### Success Response (200):
+```json
+{
+  "success": true,
+  "profile": {
+    "id": "1729598400123_abc456",
+    "farcasterUsername": "dwr",
+    "displayName": "Daniel",
+    "interests": ["crypto", "tech", "sports"],
+    "createdAt": "2025-10-22T10:30:00.000Z"
+  }
+}
+```
+
+### Error Responses:
+```json
+{
+  "success": false,
+  "message": "User not found"
+}
+```
+or
+```json
+{
+  "success": false,
+  "message": "Missing farcasterUsername query parameter"
+}
+```
+
+---
+
+## �🚀 Production URLs
 
 Replace `localhost:3000` with your deployed URL:
 ```
 https://your-app-name.onrender.com/api/create_user
 https://your-app-name.onrender.com/api/create_challenge  
 https://your-app-name.onrender.com/api/live_market
+https://your-app-name.onrender.com/api/user_profile
 ```
