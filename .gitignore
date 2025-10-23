@@ -44,6 +44,10 @@ Thumbs.db
 # Temporary folders
 tmp/
 temp/
+
+# Uploaded files
+uploads/
+!uploads/.gitkeep
 RENDER_DEPLOYMENT.md
 WAITLIST_API_DOCS.md
 ADMIN_ACCESS.md
