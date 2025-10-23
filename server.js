@@ -5,10 +5,14 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
+const path = require('path');
 
 // Import API handlers
 const waitlistHandler = require('./pages/api/waitlist');
 const adminWaitlistHandler = require('./pages/api/admin-waitlist');
+const createUserHandler = require('./pages/api/create_user');
+const createChallengeHandler = require('./pages/api/create_challenge');
+const liveMarketHandler = require('./pages/api/live_market');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -164,6 +168,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // API routes with specific rate limiting
 app.use('/api/waitlist', waitlistLimiter, waitlistHandler);
 app.use('/api/admin-waitlist', adminLimiter, adminWaitlistHandler);
+app.use('/api/create_user', waitlistLimiter, createUserHandler);
+app.use('/api/create_challenge', waitlistLimiter, createChallengeHandler);
+app.use('/api/live_market', generalLimiter, liveMarketHandler);
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -186,6 +196,9 @@ app.get('/', (req, res) => {
     endpoints: {
       waitlist: '/api/waitlist',
       adminWaitlist: '/api/admin-waitlist',
+      createUser: '/api/create_user',
+      createChallenge: '/api/create_challenge',
+      liveMarket: '/api/live_market',
       health: '/health'
     },
     documentation: 'https://github.com/stakely-backend/stakely-backend#readme'
