@@ -6,6 +6,8 @@
 ### 2. `/api/create_challenge` (POST) 
 ### 3. `/api/live_market` (GET, POST)
 ### 4. `/api/user_profile` (GET)
+### 5. `/api/voting_challenges` (GET)
+### 6. `/api/challenge_stake` (POST)
 
 ---
 
@@ -18,6 +20,168 @@
 {
   "farcasterUsername": "dwr",
   "interests": ["crypto", "tech", "sports"],
+  "farcasterWalletAddress": "0x1234567890123456789012345678901234567890"
+}
+```
+
+## 👤 4. User Profile Endpoint## Required Fields:
+
+**URL:** `GET /api/voting_challenges`
+
+Fetches all challenges that have ended but are still in their voting period. The voting period is determined by the challenge category:
+- Sports: 2 hours
+- Crypto: 2 hours
+- Entertainment: 3 hours
+- Social Network: 3 hours
+- Tech: 3 hours
+- Politics: 2 hours
+- Weather: 2 hours
+
+### Example:
+```bash
+curl "http://localhost:3000/api/voting_challenges"
+```
+
+### Success Response (200):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "1729598400123_def789",
+      "title": "Crypto Price Prediction Challenge",
+      "category": "crypto",
+      "description": "Predict if Bitcoin will reach $100k by end of year",
+      "winCondition": "Bitcoin reaches $100,000 USD on any major exchange",
+      "endDateTime": "2025-12-31T23:59:59.000Z",
+      "voteEndDateTime": "2026-01-01T01:59:59.000Z",
+      "votingTimeRemaining": {
+        "expired": false,
+        "days": 0,
+        "hours": 1,
+        "minutes": 59,
+        "seconds": 59,
+        "totalSeconds": 7199,
+        "humanReadable": "0d 1h 59m 59s"
+      },
+      "stakePool": {
+        "total": 2500,
+        "yes": 1500,
+        "no": 1000
+      },
+      "votes": {
+        "total": 20,
+        "yes": 12,
+        "no": 8,
+        "yesPercentage": 60
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 💰 6. Challenge Stake Endpoint
+
+**URL:** `POST /api/challenge_stake`
+
+Submit a stake and vote for a challenge that is in its voting period.
+
+### Request Body:
+```json
+{
+  "challengeId": "1729598400123_def789",
+  "farcasterUsername": "dwr",
+  "vote": "yes",
+  "stakeAmount": 100
+}
+```
+
+### Required Fields:
+- `challengeId` (string) - ID of the challenge to stake on
+- `farcasterUsername` (string) - User making the stake
+- `vote` (string) - Must be "yes" or "no"
+- `stakeAmount` (number) - Positive number representing the stake amount
+
+### Success Response (200):
+```json
+{
+  "success": true,
+  "message": "Stake recorded successfully",
+  "data": {
+    "challengeId": "1729598400123_def789",
+    "stakePool": {
+      "total": 2600,
+      "yes": 1600,
+      "no": 1000
+    },
+    "votes": {
+      "total": 21,
+      "yes": 13,
+      "no": 8,
+      "yesPercentage": 62
+    },
+    "votingTimeRemaining": {
+      "expired": false,
+      "days": 0,
+      "hours": 1,
+      "minutes": 30,
+      "seconds": 0,
+      "totalSeconds": 5400,
+      "humanReadable": "0d 1h 30m 0s"
+    }
+  }
+}
+```
+
+### Error Responses:
+```json
+{
+  "success": false,
+  "message": "Invalid request",
+  "errors": [
+    "Challenge ID is required",
+    "Farcaster username is required",
+    "Vote (yes/no) is required",
+    "Stake amount is required"
+  ]
+}
+```
+or
+```json
+{
+  "success": false,
+  "message": "Challenge not found"
+}
+```
+or
+```json
+{
+  "success": false,
+  "message": "Challenge has not ended yet. Voting will start after the challenge ends."
+}
+```
+or
+```json
+{
+  "success": false,
+  "message": "Voting period has ended for this challenge"
+}
+```
+or
+```json
+{
+  "success": false,
+  "message": "User has already voted on this challenge"
+}
+```
+
+---
+
+## 🚀 Production URLs
+
+Replace `localhost:3000` with your deployed URL: ["crypto", "tech", "sports"],
   "farcasterWalletAddress": "0x1234567890123456789012345678901234567890"
 }
 ```
@@ -74,11 +238,12 @@ curl -X POST http://localhost:3000/api/create_user \
 **Content-Type:** `multipart/form-data` (for file upload)
 
 ### Form Data Fields:
+- `Id` (string) - Required//the contract emmits id for each challenge
 - `farcasterUsername` (string) - Required
 - `title` (string) - Min 3 characters
 - `category` (string) - One of: sports, crypto, entertainment, social network, tech, politics, weather
 - `banner` (file) - Image file (jpeg, jpg, png, gif, webp) - Max 5MB
-- `challengeDetails` (string) - Min 10 characters
+- `description` (string) - Min 10 characters
 - `winCondition` (string) - Min 5 characters, compulsory
 - `socialPlatform` (string) - One of: farcaster, twitter, discord, telegram, other
 - `startDate` (string) - DD/MM/YYYY format
@@ -86,6 +251,17 @@ curl -X POST http://localhost:3000/api/create_user \
 - `endDate` (string) - DD/MM/YYYY format
 - `endTime` (string) - HH:MM:SS format
 - `stakeAmount` (number) - Positive number
+- `voteDuration` (string) - Voting period after challenge end time {
+  sports for 2 hrs
+  crypto for 2hrs
+  entertainment for 3hrs
+  social network for 3 hrs
+  tech for 3 hrs
+  politics for 2 hrs
+  weather for 2 hrs
+}
+
+
 
 ### Curl Example:
 ```bash
@@ -94,7 +270,7 @@ curl -X POST http://localhost:3000/api/create_challenge \
   -F "title=Crypto Price Prediction Challenge" \
   -F "category=crypto" \
   -F "banner=@/path/to/banner.jpg" \
-  -F "challengeDetails=Predict if Bitcoin will reach $100k by end of year" \
+  -F "description=Predict if Bitcoin will reach $100k by end of year" \
   -F "winCondition=Bitcoin reaches $100,000 USD on any major exchange" \
   -F "socialPlatform=farcaster" \
   -F "startDate=23/10/2025" \
@@ -130,7 +306,7 @@ const challengeData = {
   farcasterUsername: 'dwr',
   title: 'Crypto Price Prediction Challenge',
   category: 'crypto',
-  challengeDetails: 'Predict if Bitcoin will reach $100k by end of year',
+  description: 'Predict if Bitcoin will reach $100k by end of year',
   winCondition: 'Bitcoin reaches $100,000 USD on any major exchange',
   socialPlatform: 'farcaster',
   startDate: '23/10/2025',
@@ -436,4 +612,6 @@ https://your-app-name.onrender.com/api/create_user
 https://your-app-name.onrender.com/api/create_challenge  
 https://your-app-name.onrender.com/api/live_market
 https://your-app-name.onrender.com/api/user_profile
+https://your-app-name.onrender.com/api/voting_challenges
+https://your-app-name.onrender.com/api/challenge_stake
 ```

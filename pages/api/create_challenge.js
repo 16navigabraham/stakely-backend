@@ -50,6 +50,17 @@ const upload = multer({
   }
 });
 
+// Vote duration mapping (in hours)
+const VOTE_DURATIONS = {
+  'sports': 2,
+  'crypto': 2,
+  'entertainment': 3,
+  'social network': 3,
+  'tech': 3,
+  'politics': 2,
+  'weather': 2
+};
+
 // Validation helpers
 function validateCategory(category) {
   const validCategories = [
@@ -93,6 +104,10 @@ function validateDateTime(dateStr, timeStr) {
 
 function validateChallengeData(data, file) {
   const errors = [];
+
+  if (!data.Id) {
+    errors.push('Challenge Id from contract is required');
+  }
   
   if (!data.farcasterUsername || data.farcasterUsername.trim().length < 1) {
     errors.push('Farcaster username is required');
@@ -110,8 +125,8 @@ function validateChallengeData(data, file) {
     errors.push('Banner image is required');
   }
   
-  if (!data.challengeDetails || data.challengeDetails.trim().length < 10) {
-    errors.push('Challenge details must be at least 10 characters long');
+  if (!data.description || data.description.trim().length < 10) {
+    errors.push('Description must be at least 10 characters long');
   }
   
   if (!data.winCondition || data.winCondition.trim().length < 5) {
@@ -163,6 +178,13 @@ function parseDateTimeString(dateStr, timeStr) {
   return new Date(year, month, day, hours, minutes, seconds);
 }
 
+function calculateVoteEndDateTime(endDateTime, category) {
+  const voteEndDateTime = new Date(endDateTime);
+  const voteDurationHours = VOTE_DURATIONS[category.toLowerCase()] || 2; // Default to 2 hours
+  voteEndDateTime.setHours(voteEndDateTime.getHours() + voteDurationHours);
+  return voteEndDateTime;
+}
+
 async function createChallengeHandler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -197,10 +219,11 @@ async function createChallengeHandler(req, res) {
     
     try {
       const {
+        Id,
         farcasterUsername,
         title,
         category,
-        challengeDetails,
+        description,
         winCondition,
         socialPlatform,
         startDate,
@@ -230,18 +253,23 @@ async function createChallengeHandler(req, res) {
         });
       }
       
+      const endDateTime = parseDateTimeString(endDate, endTime);
+      const voteEndDateTime = calculateVoteEndDateTime(endDateTime, category);
+
       // Prepare challenge data for storage
       const challengeData = {
+        id: Id.trim(),
         farcasterUsername: farcasterUsername.trim(),
         title: title.trim(),
         category: category.toLowerCase().trim(),
         bannerUrl: req.file ? `/uploads/banners/${req.file.filename}` : null,
         bannerPath: req.file ? req.file.path : null,
-        challengeDetails: challengeDetails.trim(),
+        description: description.trim(),
         winCondition: winCondition.trim(),
         socialPlatform: socialPlatform.toLowerCase().trim(),
         startDateTime: parseDateTimeString(startDate, startTime).toISOString(),
-        endDateTime: parseDateTimeString(endDate, endTime).toISOString(),
+        endDateTime: endDateTime.toISOString(),
+        voteEndDateTime: voteEndDateTime.toISOString(),
         stakeAmount: parseFloat(stakeAmount),
         currentStake: 0,
         yesVotes: 0,
@@ -260,12 +288,15 @@ async function createChallengeHandler(req, res) {
           success: true,
           message: 'Challenge created successfully!',
           data: {
-            id: result.id,
+            id: challengeData.id,
             title: challengeData.title,
             category: challengeData.category,
             bannerUrl: challengeData.bannerUrl,
+            description: challengeData.description,
+            winCondition: challengeData.winCondition,
             startDateTime: challengeData.startDateTime,
             endDateTime: challengeData.endDateTime,
+            voteEndDateTime: challengeData.voteEndDateTime,
             stakeAmount: challengeData.stakeAmount,
             status: challengeData.status,
             createdAt: challengeData.createdAt
