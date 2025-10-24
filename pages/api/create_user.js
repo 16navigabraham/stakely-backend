@@ -120,10 +120,12 @@ async function createUserHandler(req, res) {
     };
     
     // Add to database
+    console.log('Attempting to create user with data:', userData);
     const result = await database.createUser(userData);
+    console.log('Database create result:', result);
     
     if (result.success) {
-      return res.status(201).json({
+      const response = {
         success: true,
         message: 'User created successfully!',
         data: {
@@ -133,8 +135,11 @@ async function createUserHandler(req, res) {
           farcasterWalletAddress: userData.farcasterWalletAddress,
           createdAt: userData.createdAt
         }
-      });
+      };
+      console.log('Sending success response:', response);
+      return res.status(201).json(response);
     } else {
+      console.error('Create user failed:', result);
       throw new Error('Failed to create user');
     }
     
