@@ -235,14 +235,17 @@ curl -X POST http://localhost:3000/api/create_user \
 ## 🎯 2. Create Challenge Endpoint
 
 **URL:** `POST /api/create_challenge`
-**Content-Type:** `multipart/form-data` (for file upload)
+**Content-Type:** `application/json`
 
-### Form Data Fields:
+### Request Body Fields:
 - `Id` (string) - Required//the contract emmits id for each challenge
 - `farcasterUsername` (string) - Required
 - `title` (string) - Min 3 characters
 - `category` (string) - One of: sports, crypto, entertainment, social network, tech, politics, weather
-- `banner` (file) - Image file (jpeg, jpg, png, gif, webp) - Max 5MB
+- `banner` (object) - Required
+  - `filename` (string) - Image filename
+  - `contentType` (string) - Image MIME type (image/jpeg, image/png)
+  - `data` (string) - Base64 encoded image data
 - `description` (string) - Min 10 characters
 - `winCondition` (string) - Min 5 characters, compulsory
 - `socialPlatform` (string) - One of: farcaster, twitter, discord, telegram, other
@@ -251,51 +254,50 @@ curl -X POST http://localhost:3000/api/create_user \
 - `endDate` (string) - DD/MM/YYYY format
 - `endTime` (string) - HH:MM:SS format
 - `stakeAmount` (number) - Positive number
-- `voteDuration` (string) - Voting period after challenge end time {
-  sports for 2 hrs
-  crypto for 2hrs
-  entertainment for 3hrs
-  social network for 3 hrs
-  tech for 3 hrs
-  politics for 2 hrs
-  weather for 2 hrs
-}
 
+Note: Voting duration is automatically set based on category:
+- sports: 2 hours
+- crypto: 2 hours
+- entertainment: 3 hours
+- social network: 3 hours
+- tech: 3 hours
+- politics: 2 hours
+- weather: 2 hours
 
-
-### Curl Example:
+### Request Example:
 ```bash
 curl -X POST http://localhost:3000/api/create_challenge \
-  -F "farcasterUsername=dwr" \
-  -F "title=Crypto Price Prediction Challenge" \
-  -F "category=crypto" \
-  -F "banner=@/path/to/banner.jpg" \
-  -F "description=Predict if Bitcoin will reach $100k by end of year" \
-  -F "winCondition=Bitcoin reaches $100,000 USD on any major exchange" \
-  -F "socialPlatform=farcaster" \
-  -F "startDate=23/10/2025" \
-  -F "startTime=00:00:00" \
-  -F "endDate=31/12/2025" \
-  -F "endTime=23:59:59" \
-  -F "stakeAmount=100"
+  -H "Content-Type: application/json" \
+  -d '{
+    "Id": "mh4j6425qlz9w02cofk_challenge1",
+    "farcasterUsername": "dwr",
+    "title": "Crypto Price Prediction Challenge",
+    "category": "crypto",
+    "banner": {
+      "filename": "bitcoin_prediction.jpg",
+      "contentType": "image/jpeg",
+      "data": "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+    },
+    "description": "Predict if Bitcoin will reach $100k by end of year",
+    "winCondition": "Bitcoin reaches $100,000 USD on any major exchange",
+    "socialPlatform": "farcaster",
+    "startDate": "23/11/2025",
+    "startTime": "00:00:00",
+    "endDate": "31/12/2025",
+    "endTime": "23:59:59",
+    "stakeAmount": 100
+  }'
 ```
 
-### JavaScript Example (with FormData):
+### JavaScript Example:
 ```javascript
-const createChallenge = async (challengeData, bannerFile) => {
-  const formData = new FormData();
-  
-  // Add all text fields
-  Object.keys(challengeData).forEach(key => {
-    formData.append(key, challengeData[key]);
-  });
-  
-  // Add banner file
-  formData.append('banner', bannerFile);
-  
+const createChallenge = async (challengeData) => {
   const response = await fetch('/api/create_challenge', {
     method: 'POST',
-    body: formData
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(challengeData)
   });
   
   return response.json();
@@ -303,9 +305,15 @@ const createChallenge = async (challengeData, bannerFile) => {
 
 // Usage
 const challengeData = {
+  Id: 'mh4j6425qlz9w02cofk_challenge1',
   farcasterUsername: 'dwr',
   title: 'Crypto Price Prediction Challenge',
   category: 'crypto',
+  banner: {
+    filename: 'bitcoin_prediction.jpg',
+    contentType: 'image/jpeg',
+    data: '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k='
+  },
   description: 'Predict if Bitcoin will reach $100k by end of year',
   winCondition: 'Bitcoin reaches $100,000 USD on any major exchange',
   socialPlatform: 'farcaster',
@@ -313,10 +321,34 @@ const challengeData = {
   startTime: '00:00:00',
   endDate: '31/12/2025',
   endTime: '23:59:59',
-  stakeAmount: '100'
+  stakeAmount: 100
 };
 
-createChallenge(challengeData, bannerFile);
+// Convert image to base64 (if needed)
+const imageToBase64 = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+  });
+};
+
+// Example with file input
+document.querySelector('input[type="file"]').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  challengeData.banner = {
+    filename: file.name,
+    contentType: file.type,
+    data: await imageToBase64(file)
+  };
+  const result = await createChallenge(challengeData);
+  console.log(result);
+});
 ```
 
 ### Success Response (201):
