@@ -1,4 +1,5 @@
 const database = require('../../lib/database');
+const { validateChallengeIdExists, validateUserNotVoted } = require('../../lib/validators');
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,17 +17,32 @@ async function handler(req, res) {
 
   const { challengeId, farcasterUsername, vote, stakeAmount } = req.body;
 
-  // Validate required fields
-  if (!challengeId || !farcasterUsername || !vote || !stakeAmount) {
+  // Validate required fields and types
+  const errors = [];
+  
+  if (!challengeId) {
+    errors.push('Challenge ID is required');
+  } else if (typeof challengeId !== 'number' || isNaN(challengeId)) {
+    errors.push('Challenge ID must be a number');
+  }
+  
+  if (!farcasterUsername) {
+    errors.push('Farcaster username is required');
+  }
+  
+  if (!vote) {
+    errors.push('Vote (yes/no) is required');
+  }
+  
+  if (!stakeAmount) {
+    errors.push('Stake amount is required');
+  }
+
+  if (errors.length > 0) {
     return res.status(400).json({
       success: false,
-      message: 'Missing required fields',
-      errors: [
-        !challengeId && 'Challenge ID is required',
-        !farcasterUsername && 'Farcaster username is required',
-        !vote && 'Vote (yes/no) is required',
-        !stakeAmount && 'Stake amount is required'
-      ].filter(Boolean)
+      message: 'Validation failed',
+      errors: errors
     });
   }
 

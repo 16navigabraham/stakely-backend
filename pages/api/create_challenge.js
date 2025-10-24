@@ -106,7 +106,9 @@ function validateChallengeData(data, file) {
   const errors = [];
 
   if (!data.Id) {
-    errors.push('Challenge Id from contract is required');
+    errors.push('Challenge Id is required');
+  } else if (typeof data.Id !== 'number' || isNaN(data.Id)) {
+    errors.push('Challenge Id must be a number');
   }
   
   if (!data.farcasterUsername || data.farcasterUsername.trim().length < 1) {
@@ -232,6 +234,25 @@ async function createChallengeHandler(req, res) {
         endTime,
         stakeAmount
       } = req.body;
+      
+      // Check if challenge ID already exists
+      const { exists } = await validateChallengeIdNotExists(Id);
+      if (exists) {
+        // Clean up uploaded file if validation fails
+        if (req.file) {
+          try {
+            await fs.unlink(req.file.path);
+          } catch (cleanupError) {
+            console.error('File cleanup error:', cleanupError);
+          }
+        }
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: ['Challenge ID already exists']
+        });
+      }
       
       // Validate required fields
       const validationErrors = validateChallengeData(req.body, req.file);

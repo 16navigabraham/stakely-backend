@@ -43,8 +43,44 @@ async function liveMarketHandler(req, res) {
     try {
       await initializeDatabase();
       const { farcasterUsername, challengeId, vote, stakeAmount } = req.body;
-      if (!farcasterUsername || !challengeId || !vote) {
-        return res.status(400).json({ success: false, message: 'Missing required fields: farcasterUsername, challengeId, vote' });
+      const errors = [];
+
+      if (!farcasterUsername) {
+        errors.push('Farcaster username is required');
+      }
+      
+      if (!challengeId) {
+        errors.push('Challenge ID is required');
+      } else if (typeof challengeId !== 'number' || isNaN(challengeId)) {
+        errors.push('Challenge ID must be a number');
+      }
+      
+      if (!vote) {
+        errors.push('Vote is required');
+      }
+
+      if (errors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors
+        });
+      }
+
+      // Validate challenge exists
+      const { exists, challenge } = await validateChallengeIdExists(challengeId);
+      if (!exists) {
+        return res.status(404).json({ success: false, message: 'Challenge not found' });
+      }
+
+      // Check if user has already voted
+      const { hasVoted, vote: existingVote } = await validateUserNotVoted(challengeId, farcasterUsername);
+      if (hasVoted) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'User has already voted on this challenge',
+          existingVote: existingVote
+        });
       }
 
       if (!['yes', 'no'].includes(String(vote).toLowerCase())) {
