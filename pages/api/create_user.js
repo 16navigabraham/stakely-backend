@@ -30,22 +30,29 @@ function validateWalletAddress(address) {
 
 function validateInterests(interests) {
   const validInterests = [
-    'sports', 'crypto', 'entertainment', 'social network', 
-    'tech', 'politics', 'weather'
+    'sports', 'food', 'entertainment', 'gaming',
+    'crypto', 'fitness', 'travel', 'music',
+    'tech', 'art'
   ];
   
   if (!Array.isArray(interests)) {
-    return false;
+    throw new Error('Interests must be an array');
   }
   
   if (interests.length !== 3) {
-    return false;
+    throw new Error('Exactly 3 interests are required');
   }
   
-  // Check if all interests are valid
-  return interests.every(interest => 
-    validInterests.includes(interest.toLowerCase().trim())
+  // Find invalid interests
+  const invalidInterests = interests.filter(interest => 
+    !validInterests.includes(interest.toLowerCase().trim())
   );
+  
+  if (invalidInterests.length > 0) {
+    throw new Error(`Invalid interests: ${invalidInterests.join(', ')}. Valid options are: ${validInterests.join(', ')}`);
+  }
+  
+  return true;
 }
 
 function validateUserData(data) {
@@ -95,17 +102,22 @@ async function createUserHandler(req, res) {
     const { farcasterUsername, interests, farcasterWalletAddress } = req.body;
     
     // Validate required fields
-    const validationErrors = validateUserData({ 
-      farcasterUsername, 
-      interests, 
-      farcasterWalletAddress 
-    });
-    
-    if (validationErrors.length > 0) {
+    try {
+      validateUserData({ 
+        farcasterUsername, 
+        interests, 
+        farcasterWalletAddress 
+      });
+    } catch (validationError) {
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: validationErrors
+        error: validationError.message,
+        validInterests: [
+          'sports', 'food', 'entertainment', 'gaming',
+          'crypto', 'fitness', 'travel', 'music',
+          'tech', 'art'
+        ]
       });
     }
     
