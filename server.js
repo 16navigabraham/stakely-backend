@@ -38,8 +38,8 @@ const corsOptions = {
       process.env.ADMIN_FRONTEND_URL,
       
       // Add your production domains
-      'https://your-frontend-domain.com',
-      'https://stakely.vercel.app',
+      'https://stakely-miniapp.vercel.app',
+      'https://playstakely.vercel.app',
       'https://stakely.netlify.app',
       
       // Allow any subdomain in production if specified
