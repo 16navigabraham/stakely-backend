@@ -28,16 +28,19 @@ async function handler(req, res) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Return a minimal profile
-    const profile = {
+    // Return data matching frontend interface
+    const data = {
       id: user.id,
       farcasterUsername: user.farcasterUsername,
-      displayName: user.displayName || user.name || null,
       interests: user.interests || [],
+      farcasterWalletAddress: user.farcasterWalletAddress,
       createdAt: user.createdAt || null
     };
 
-    return res.status(200).json({ success: true, profile });
+    return res.status(200).json({ 
+      success: true, 
+      data: data
+    });
   } catch (error) {
     console.error('User profile error:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch user profile' });
