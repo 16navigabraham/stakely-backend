@@ -88,6 +88,10 @@ async function createUserHandler(req, res) {
   await initializeDatabase();
   
   try {
+    // Log the incoming request body for debugging
+    console.log('Create user request body:', req.body);
+    console.log('Create user headers:', req.headers);
+    
     const { farcasterUsername, interests, farcasterWalletAddress } = req.body;
     
     // Validate required fields

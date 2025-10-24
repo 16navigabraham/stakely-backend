@@ -20,6 +20,8 @@ async function handler(req, res) {
   }
 
   try {
+    console.log('Fetching profile for username:', farcasterUsername);
+    console.log('Database storage mode:', database.useFileStorage ? 'File Storage' : 'MongoDB');
     await database.connect();
     const user = await database.getUserByFarcasterUsername(farcasterUsername);
     if (!user) {

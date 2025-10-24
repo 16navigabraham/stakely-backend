@@ -13,6 +13,7 @@ const adminWaitlistHandler = require('./pages/api/admin-waitlist');
 const createUserHandler = require('./pages/api/create_user');
 const createChallengeHandler = require('./pages/api/create_challenge');
 const liveMarketHandler = require('./pages/api/live_market');
+const userProfileHandler = require('./pages/api/user_profile');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -171,6 +172,7 @@ app.use('/api/admin-waitlist', adminLimiter, adminWaitlistHandler);
 app.use('/api/create_user', waitlistLimiter, createUserHandler);
 app.use('/api/create_challenge', waitlistLimiter, createChallengeHandler);
 app.use('/api/live_market', generalLimiter, liveMarketHandler);
+app.use('/api/user_profile', generalLimiter, userProfileHandler);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
