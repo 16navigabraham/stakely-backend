@@ -30,7 +30,7 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:5173', // Vite dev server
-      'http://localhost:8080',
+      'https://red-satellite-9230786.postman.co',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5173',
       
