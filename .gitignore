@@ -1,7 +1,5 @@
 # Environment files
 .env.example
-.env.production
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -44,6 +42,17 @@ Thumbs.db
 # Temporary folders
 tmp/
 temp/
+
+# Uploaded files
+uploads/
+!uploads/.gitkeep
+
 RENDER_DEPLOYMENT.md
 WAITLIST_API_DOCS.md
 ADMIN_ACCESS.md
+POSTMAN_TEST_DOCS.md
+ADMIN_ACCESS.md
+
+NEW_ENDPOINTS_DOCS.md
+NEW_ENDPOINTS_DOCS.md
+config.bat

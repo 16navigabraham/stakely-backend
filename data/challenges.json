@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "title": "Currently Active Challenge",
+    "category": "crypto",
+    "challengeDetails": "This challenge is currently active for testing",
+    "winCondition": "Test condition",
+    "socialPlatform": "farcaster",
+    "startDateTime": "2025-10-25T08:00:00.000Z",
+    "endDateTime": "2025-10-25T12:00:00.000Z",
+    "voteEndDateTime": "2025-10-25T14:00:00.000Z",
+    "stakeAmount": 100,
+    "currentStake": 0,
+    "yesVotes": 0,
+    "noVotes": 0,
+    "status": "pending",
+    "createdAt": "2025-10-25T08:00:00.000Z",
+    "farcasterUsername": "testuser"
+  },
+  {
+    "id": 2,
+    "title": "Future Challenge",
+    "category": "sports", 
+    "challengeDetails": "This challenge is in the future",
+    "winCondition": "Future condition",
+    "socialPlatform": "farcaster",
+    "startDateTime": "2025-10-25T15:00:00.000Z",
+    "endDateTime": "2025-10-25T18:00:00.000Z",
+    "voteEndDateTime": "2025-10-25T20:00:00.000Z",
+    "stakeAmount": 50,
+    "currentStake": 0,
+    "yesVotes": 0,
+    "noVotes": 0,
+    "status": "pending",
+    "createdAt": "2025-10-25T08:00:00.000Z",
+    "farcasterUsername": "testuser"
+  }
+]
