@@ -1,7 +1,4 @@
 const database = require('../../lib/database');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
 
 // Initialize database connection on first import
 let dbInitialized = false;
@@ -12,43 +9,6 @@ async function initializeDatabase() {
     dbInitialized = true;
   }
 }
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: async function (req, file, cb) {
-    const uploadDir = path.join(process.cwd(), 'uploads', 'banners');
-    try {
-      await fs.mkdir(uploadDir, { recursive: true });
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `banner-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    // Check file type
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
-    }
-  }
-});
 
 // Vote duration mapping (in hours)
 const VOTE_DURATIONS = {
@@ -102,7 +62,7 @@ function validateDateTime(dateStr, timeStr) {
   }
 }
 
-function validateChallengeData(data, file) {
+function validateChallengeData(data) {
   const errors = [];
 
   if (!data.Id) {
@@ -121,10 +81,6 @@ function validateChallengeData(data, file) {
   
   if (!validateCategory(data.category)) {
     errors.push('Category must be one of: sports, crypto, entertainment, social network, tech, politics, weather');
-  }
-  
-  if (!file) {
-    errors.push('Banner image is required');
   }
   
   if (!data.description || data.description.trim().length < 10) {
@@ -187,6 +143,16 @@ function calculateVoteEndDateTime(endDateTime, category) {
   return voteEndDateTime;
 }
 
+async function validateChallengeIdNotExists(challengeId) {
+  try {
+    const existingChallenge = await database.getChallengeById(challengeId);
+    return { exists: !!existingChallenge };
+  } catch (error) {
+    console.error('Error checking challenge ID:', error);
+    return { exists: false };
+  }
+}
+
 async function createChallengeHandler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -208,144 +174,102 @@ async function createChallengeHandler(req, res) {
   
   await initializeDatabase();
   
-  // Handle file upload
-  upload.single('banner')(req, res, async function (err) {
-    if (err) {
-      console.error('Upload error:', err);
+  try {
+    const {
+      Id,
+      farcasterUsername,
+      title,
+      category,
+      description,
+      winCondition,
+      socialPlatform,
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      stakeAmount
+    } = req.body;
+    
+    // Check if challenge ID already exists
+    const { exists } = await validateChallengeIdNotExists(Id);
+    if (exists) {
       return res.status(400).json({
         success: false,
-        message: 'File upload error',
-        error: err.message
+        message: 'Validation failed',
+        errors: ['Challenge ID already exists']
       });
     }
     
-    try {
-      const {
-        Id,
-        farcasterUsername,
-        title,
-        category,
-        description,
-        winCondition,
-        socialPlatform,
-        startDate,
-        startTime,
-        endDate,
-        endTime,
-        stakeAmount
-      } = req.body;
-      
-      // Check if challenge ID already exists
-      const { exists } = await validateChallengeIdNotExists(Id);
-      if (exists) {
-        // Clean up uploaded file if validation fails
-        if (req.file) {
-          try {
-            await fs.unlink(req.file.path);
-          } catch (cleanupError) {
-            console.error('File cleanup error:', cleanupError);
-          }
-        }
-        
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: ['Challenge ID already exists']
-        });
-      }
-      
-      // Validate required fields
-      const validationErrors = validateChallengeData(req.body, req.file);
-      
-      if (validationErrors.length > 0) {
-        // Clean up uploaded file if validation fails
-        if (req.file) {
-          try {
-            await fs.unlink(req.file.path);
-          } catch (cleanupError) {
-            console.error('File cleanup error:', cleanupError);
-          }
-        }
-        
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: validationErrors
-        });
-      }
-      
-      const endDateTime = parseDateTimeString(endDate, endTime);
-      const voteEndDateTime = calculateVoteEndDateTime(endDateTime, category);
-
-      // Prepare challenge data for storage
-      const challengeData = {
-        id: Id.trim(),
-        farcasterUsername: farcasterUsername.trim(),
-        title: title.trim(),
-        category: category.toLowerCase().trim(),
-        bannerUrl: req.file ? `/uploads/banners/${req.file.filename}` : null,
-        bannerPath: req.file ? req.file.path : null,
-        description: description.trim(),
-        winCondition: winCondition.trim(),
-        socialPlatform: socialPlatform.toLowerCase().trim(),
-        startDateTime: parseDateTimeString(startDate, startTime).toISOString(),
-        endDateTime: endDateTime.toISOString(),
-        voteEndDateTime: voteEndDateTime.toISOString(),
-        stakeAmount: parseFloat(stakeAmount),
-        currentStake: 0,
-        yesVotes: 0,
-        noVotes: 0,
-        status: 'pending', // pending, active, completed, cancelled
-        createdAt: new Date().toISOString(),
-        userAgent: req.headers['user-agent'],
-        ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress
-      };
-      
-      // Add to database
-      const result = await database.createChallenge(challengeData);
-      
-      if (result.success) {
-        return res.status(201).json({
-          success: true,
-          message: 'Challenge created successfully!',
-          data: {
-            id: challengeData.id,
-            title: challengeData.title,
-            category: challengeData.category,
-            bannerUrl: challengeData.bannerUrl,
-            description: challengeData.description,
-            winCondition: challengeData.winCondition,
-            startDateTime: challengeData.startDateTime,
-            endDateTime: challengeData.endDateTime,
-            voteEndDateTime: challengeData.voteEndDateTime,
-            stakeAmount: challengeData.stakeAmount,
-            status: challengeData.status,
-            createdAt: challengeData.createdAt
-          }
-        });
-      } else {
-        throw new Error('Failed to create challenge');
-      }
-      
-    } catch (error) {
-      console.error('Create challenge error:', error);
-      
-      // Clean up uploaded file if database save fails
-      if (req.file) {
-        try {
-          await fs.unlink(req.file.path);
-        } catch (cleanupError) {
-          console.error('File cleanup error:', cleanupError);
-        }
-      }
-      
-      return res.status(500).json({
+    // Validate required fields
+    const validationErrors = validateChallengeData(req.body);
+    
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
         success: false,
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Validation failed',
+        errors: validationErrors
       });
     }
-  });
+    
+    const endDateTime = parseDateTimeString(endDate, endTime);
+    const voteEndDateTime = calculateVoteEndDateTime(endDateTime, category);
+
+    // Prepare challenge data for storage
+    const challengeData = {
+      id: Id.toString().trim(),
+      farcasterUsername: farcasterUsername.trim(),
+      title: title.trim(),
+      category: category.toLowerCase().trim(),
+      description: description.trim(),
+      winCondition: winCondition.trim(),
+      socialPlatform: socialPlatform.toLowerCase().trim(),
+      startDateTime: parseDateTimeString(startDate, startTime).toISOString(),
+      endDateTime: endDateTime.toISOString(),
+      voteEndDateTime: voteEndDateTime.toISOString(),
+      stakeAmount: parseFloat(stakeAmount),
+      currentStake: 0,
+      yesVotes: 0,
+      noVotes: 0,
+      status: 'pending', // pending, active, completed, cancelled
+      createdAt: new Date().toISOString(),
+      userAgent: req.headers['user-agent'],
+      ip: req.headers['x-forwarded-for'] || req.connection.remoteAddress
+    };
+    
+    // Add to database
+    const result = await database.createChallenge(challengeData);
+    
+    if (result.success) {
+      return res.status(201).json({
+        success: true,
+        message: 'Challenge created successfully!',
+        data: {
+          id: challengeData.id,
+          title: challengeData.title,
+          category: challengeData.category,
+          description: challengeData.description,
+          winCondition: challengeData.winCondition,
+          startDateTime: challengeData.startDateTime,
+          endDateTime: challengeData.endDateTime,
+          voteEndDateTime: challengeData.voteEndDateTime,
+          stakeAmount: challengeData.stakeAmount,
+          status: challengeData.status,
+          createdAt: challengeData.createdAt
+        }
+      });
+    } else {
+      throw new Error('Failed to create challenge');
+    }
+    
+  } catch (error) {
+    console.error('Create challenge error:', error);
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 }
 
 module.exports = createChallengeHandler;
