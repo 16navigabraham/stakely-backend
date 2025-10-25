@@ -1,7 +1,5 @@
 # Environment files
 .env.example
-.env.production
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -57,3 +55,4 @@ ADMIN_ACCESS.md
 
 NEW_ENDPOINTS_DOCS.md
 NEW_ENDPOINTS_DOCS.md
+config.bat
