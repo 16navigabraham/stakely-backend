@@ -26,10 +26,39 @@ function validateCategory(category) {
   return VALID_CATEGORIES.includes(category.toLowerCase().trim());
 }
 
+// Helper function to validate if challenge exists
+async function validateChallengeIdExists(challengeId) {
+  try {
+    const challenge = await database.getChallengeById(challengeId);
+    return { 
+      exists: !!challenge, 
+      challenge: challenge 
+    };
+  } catch (error) {
+    console.error('Error validating challenge:', error);
+    return { exists: false, challenge: null };
+  }
+}
+
+// Helper function to check if user has already voted
+async function validateUserNotVoted(challengeId, farcasterUsername) {
+  try {
+    // Check if user has already voted on this challenge
+    const existingVote = await database.getVoteByUserAndChallenge(challengeId, farcasterUsername);
+    return { 
+      hasVoted: !!existingVote, 
+      vote: existingVote 
+    };
+  } catch (error) {
+    console.error('Error checking user vote:', error);
+    return { hasVoted: false, vote: null };
+  }
+}
+
 async function liveMarketHandler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   // Handle preflight requests
@@ -125,6 +154,19 @@ async function liveMarketHandler(req, res) {
       userVotes = 'false'
     } = req.query;
     
+    // Debug logging for query parameters
+    console.log('API Query Parameters:', {
+      farcasterUsername,
+      category,
+      page,
+      limit: limit,
+      limitType: typeof limit,
+      sortBy,
+      sortOrder,
+      status,
+      userVotes
+    });
+    
     // Validate category
     if (!validateCategory(category)) {
       return res.status(400).json({
@@ -133,10 +175,17 @@ async function liveMarketHandler(req, res) {
       });
     }
     
-    // Build filter criteria
+    // Build filter criteria 
+    let dbStatus = status;
+    if (status === 'all') {
+      dbStatus = null; // Don't filter by status for 'all'
+    } else if (status === 'active') {
+      dbStatus = null; // Don't filter by status for 'active' - we'll filter by time later
+    }
+    
     const filterCriteria = {
       category: category.toLowerCase() === 'all' ? null : category.toLowerCase().trim(),
-      status: status,
+      status: dbStatus,
       farcasterUsername: farcasterUsername || null
     };
     
@@ -177,44 +226,104 @@ async function liveMarketHandler(req, res) {
       sortOrder: sortOrderNum
     });
     
+    // Debug logging
+    console.log('Database query result:', {
+      filterCriteria,
+      userInterests,
+      resultDataLength: result.data ? result.data.length : 0,
+      resultTotal: result.total,
+      useFileStorage: database.useFileStorage,
+      isConnected: database.isConnected,
+      hasDB: !!database.db
+    });
+    
     // Get market statistics
     const marketStats = await database.getMarketStats();
     
+    // Additional debug for market stats
+    console.log('Market stats result:', {
+      totalChallenges: marketStats.totalChallenges,
+      activeChallenges: marketStats.activeChallenges,
+      useFileStorage: database.useFileStorage
+    });
+    
     // Format response data
-    const formattedChallenges = result.data.map(challenge => ({
-      id: challenge.id,
-      title: challenge.title,
-      category: challenge.category,
-      bannerUrl: challenge.bannerUrl,
-      challengeDetails: challenge.challengeDetails,
-      winCondition: challenge.winCondition,
-      socialPlatform: challenge.socialPlatform,
-      startDateTime: challenge.startDateTime,
-      endDateTime: challenge.endDateTime,
-      stakeAmount: challenge.stakeAmount,
-      currentStake: challenge.currentStake || 0,
-      yesVotes: challenge.yesVotes || 0,
-      noVotes: challenge.noVotes || 0,
-      totalVotes: (challenge.yesVotes || 0) + (challenge.noVotes || 0),
-      yesPercentage: challenge.yesVotes && challenge.noVotes 
-        ? Math.round((challenge.yesVotes / (challenge.yesVotes + challenge.noVotes)) * 100)
-        : 0,
-      status: challenge.status,
-      createdAt: challenge.createdAt,
-      farcasterUsername: challenge.farcasterUsername,
-      timeRemaining: calculateTimeRemaining(challenge.endDateTime),
-      isActive: new Date() >= new Date(challenge.startDateTime) && new Date() <= new Date(challenge.endDateTime)
-    }));
+    const allFormattedChallenges = (result.data || []).map(challenge => {
+      const now = new Date();
+      const startDateTime = new Date(challenge.startDateTime);
+      const endDateTime = new Date(challenge.endDateTime);
+      
+      // Determine actual status based on time
+      let actualStatus = challenge.status;
+      if (now >= startDateTime && now <= endDateTime) {
+        actualStatus = 'active';
+      } else if (now > endDateTime) {
+        actualStatus = 'completed';
+      } else {
+        actualStatus = 'pending';
+      }
+      
+      return {
+        id: challenge.id,
+        title: challenge.title,
+        category: challenge.category,
+        bannerUrl: challenge.bannerUrl,
+        challengeDetails: challenge.challengeDetails,
+        winCondition: challenge.winCondition,
+        socialPlatform: challenge.socialPlatform,
+        startDateTime: challenge.startDateTime,
+        endDateTime: challenge.endDateTime,
+        voteEndDateTime: challenge.voteEndDateTime,
+        stakeAmount: challenge.stakeAmount,
+        currentStake: challenge.currentStake || 0,
+        yesVotes: challenge.yesVotes || 0,
+        noVotes: challenge.noVotes || 0,
+        totalVotes: (challenge.yesVotes || 0) + (challenge.noVotes || 0),
+        yesPercentage: (challenge.yesVotes || 0) > 0 || (challenge.noVotes || 0) > 0
+          ? Math.round(((challenge.yesVotes || 0) / ((challenge.yesVotes || 0) + (challenge.noVotes || 0))) * 100)
+          : 0,
+        status: actualStatus,
+        createdAt: challenge.createdAt,
+        farcasterUsername: challenge.farcasterUsername,
+        timeRemaining: calculateTimeRemaining(challenge.endDateTime),
+        isActive: now >= startDateTime && now <= endDateTime
+      };
+    });
+    
+    // Filter by requested status after calculating actual status
+    const filteredChallenges = allFormattedChallenges.filter(challenge => {
+      if (status === 'all') return true;
+      
+      // For 'active' status, use time-based calculation
+      if (status === 'active') {
+        return challenge.isActive;
+      }
+      
+      // For other statuses, use the stored status
+      return challenge.status === status;
+    });
+    
+    // Debug logging for filtering
+    console.log('Filtering debug:', {
+      allChallengesCount: allFormattedChallenges.length,
+      requestedStatus: status,
+      filteredCount: filteredChallenges.length,
+      filterCriteria: filterCriteria,
+      allStatuses: allFormattedChallenges.map(c => ({ id: c.id, status: c.status, isActive: c.isActive }))
+    });
+    
+    // Apply pagination to filtered results
+    const paginatedChallenges = filteredChallenges.slice(skip, skip + limitNum);
     
     return res.status(200).json({
       success: true,
-      data: formattedChallenges,
+      data: paginatedChallenges,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(result.total / limitNum),
-        totalItems: result.total,
+        totalPages: Math.ceil(filteredChallenges.length / limitNum),
+        totalItems: filteredChallenges.length,
         itemsPerPage: limitNum,
-        hasNext: skip + limitNum < result.total,
+        hasNext: skip + limitNum < filteredChallenges.length,
         hasPrev: parseInt(page) > 1
       },
       filters: {
